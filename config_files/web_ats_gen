@@ -1,0 +1,10 @@
+web_ats_gen (python code provided separately) launched with command line:
+
+# /usr/bin/python ./web_ats_gen.py --host localhost --port 8888 --obj-dist fixed/usr/local/nginx/nginx -V
+
+Verify web_ats_gen is listening on port 8888:
+
+# netstat -ntlp | grep 8888
+tcp        0      0 127.0.0.1:8888          0.0.0.0:*               LISTEN      161828/python
+
+

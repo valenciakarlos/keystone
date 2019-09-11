@@ -1,0 +1,134 @@
+NGINX 1.15.6 built from source
+
+# /usr/local/nginx/nginx -V
+nginx version: nginx/1.15.6
+built by gcc 4.8.5 20150623 (Red Hat 4.8.5-36) (GCC)
+built with OpenSSL 1.0.2k-fips  26 Jan 2017 (running with OpenSSL 1.0.2o-fips  27 Mar 2018)
+TLS SNI support enabled
+configure arguments: --sbin-path=/usr/local/nginx/nginx --conf-path=/usr/local/nginx/nginx.conf --pid-path=/usr/local/nginx/nginx.pid 
+--with-compat --with-file-aio --with-threads --with-http_addition_module --with-http_auth_request_module --with-http_dav_module 
+--with-http_flv_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_mp4_module --with-http_random_index_module 
+--with-http_realip_module --with-http_secure_link_module --with-http_slice_module --with-http_ssl_module --with-http_stub_status_module 
+--with-http_sub_module --with-http_v2_module --with-mail --with-mail_ssl_module --with-stream --with-stream_realip_module 
+--with-stream_ssl_module --with-stream_ssl_preread_module
+
+NGINX cache mount points (NVMe devices formatted as ext4, mounted under /cdn/cache* directories):
+
+# mount | grep cdn
+/dev/nvme0n1 on /cdn/cache0 type ext4 (rw,noatime,seclabel,discard)
+/dev/nvme1n1 on /cdn/cache1 type ext4 (rw,noatime,seclabel,discard)
+/dev/nvme2n1 on /cdn/cache2 type ext4 (rw,noatime,seclabel,discard)
+/dev/nvme3n1 on /cdn/cache3 type ext4 (rw,noatime,seclabel,discard)
+/dev/nvme4n1 on /cdn/cache4 type ext4 (rw,noatime,seclabel,discard)
+/dev/nvme5n1 on /cdn/cache5 type ext4 (rw,noatime,seclabel,discard)
+/dev/nvme6n1 on /cdn/cache6 type ext4 (rw,noatime,seclabel,discard)
+/dev/nvme7n1 on /cdn/cache7 type ext4 (rw,noatime,seclabel,discard)
+
+
+# cat /usr/local/nginx/nginx.conf
+user                nginx;
+daemon              off;
+worker_processes    auto;
+worker_cpu_affinity auto;
+
+error_log           error.log ;
+events {
+    worker_connections  65535;
+    use epoll;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    access_log    off;
+    aio           threads;
+    aio_write     on;
+    read_ahead    0;
+    tcp_nopush    on;
+    tcp_nodelay   off;
+
+    sendfile      off;
+
+    upstream backends {
+        server <ORIGIN_SERVER_IP>;
+        keepalive 500;
+    }
+
+
+
+# Cache Configurations
+proxy_cache_path /cdn/cache0/NX levels=2 keys_zone=nginx-cache0:1000m
+        max_size=1000g inactive=1440h use_temp_path=off
+        manager_sleep=31536000;
+proxy_cache_path /cdn/cache1/NX levels=2 keys_zone=nginx-cache1:1000m
+        max_size=1000g inactive=1440h use_temp_path=off
+        manager_sleep=31536000;
+proxy_cache_path /cdn/cache2/NX levels=2 keys_zone=nginx-cache2:1000m
+        max_size=1000g inactive=1440h use_temp_path=off
+        manager_sleep=31536000;
+proxy_cache_path /cdn/cache3/NX levels=2 keys_zone=nginx-cache3:1000m
+        max_size=1000g inactive=1440h use_temp_path=off
+        manager_sleep=31536000;
+proxy_cache_path /cdn/cache4/NX levels=2 keys_zone=nginx-cache4:1000m
+        max_size=1000g inactive=1440h use_temp_path=off
+        manager_sleep=31536000;
+proxy_cache_path /cdn/cache5/NX levels=2 keys_zone=nginx-cache5:1000m
+        max_size=1000g inactive=1440h use_temp_path=off
+        manager_sleep=31536000;
+proxy_cache_path /cdn/cache6/NX levels=2 keys_zone=nginx-cache6:1000m
+        max_size=1000g inactive=1440h use_temp_path=off
+        manager_sleep=31536000;
+proxy_cache_path /cdn/cache7/NX levels=2 keys_zone=nginx-cache7:1000m
+        max_size=1000g inactive=1440h use_temp_path=off
+        manager_sleep=31536000;
+proxy_cache_path /cdn/cache8/NX levels=2 keys_zone=nginx-cache8:1000m
+        max_size=1000g inactive=1440h use_temp_path=off
+        manager_sleep=31536000;
+proxy_cache_path /cdn/cache9/NX levels=2 keys_zone=nginx-cache9:1000m
+        max_size=1000g inactive=1440h use_temp_path=off
+        manager_sleep=31536000;
+
+[continued]
+
+# Map drives
+split_clients $request_uri $ng_cache {
+        10%          "nginx-cache0";
+        10%          "nginx-cache1";
+        10%          "nginx-cache2";
+        10%          "nginx-cache3";
+        10%          "nginx-cache4";
+        10%          "nginx-cache5";
+        10%          "nginx-cache6";
+        10%          "nginx-cache7";
+        10%          "nginx-cache8";
+        10%          "nginx-cache9";
+}
+
+
+[continued]
+server {
+    listen 80 reuseport; ## listen for ipv4
+    listen [::]:80 reuseport; ## listen for ipv6
+    listen 443 ssl reuseport; ## listen for ssl
+
+    ssl_certificate      MyCertificate.crt;
+    ssl_certificate_key  MyKey.key;
+
+    ssl_ciphers  HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers  on;
+
+    ## Always put default location
+    location / {
+      proxy_cache $ng_cache;
+
+      proxy_set_header Host $host;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_pass http://backends;
+      proxy_cache_valid 200 120d;
+      add_header X-Proxy-Cache $upstream_cache_status;
+
+    }
+  }
+}
+

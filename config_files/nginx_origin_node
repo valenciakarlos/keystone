@@ -1,0 +1,77 @@
+NGINX 1.15.6 built from source
+
+# /usr/local/nginx/nginx -V
+nginx version: nginx/1.15.6
+built by gcc 4.8.5 20150623 (Red Hat 4.8.5-36) (GCC)
+built with OpenSSL 1.0.2k-fips  26 Jan 2017 (running with OpenSSL 1.0.2o-fips  27 Mar 2018)
+TLS SNI support enabled
+configure arguments: --sbin-path=/usr/local/nginx/nginx --conf-path=/usr/local/nginx/nginx.conf --pid-path=/usr/local/nginx/nginx.pid 
+--with-compat --with-file-aio --with-threads --with-http_addition_module --with-http_auth_request_module --with-http_dav_module 
+--with-http_flv_module --with-http_gunzip_module --with-http_gzip_static_module --with-http_mp4_module --with-http_random_index_module 
+--with-http_realip_module --with-http_secure_link_module --with-http_slice_module --with-http_ssl_module --with-http_stub_status_module 
+--with-http_sub_module --with-http_v2_module --with-mail --with-mail_ssl_module --with-stream --with-stream_realip_module 
+--with-stream_ssl_module --with-stream_ssl_preread_module
+
+NGINX cache directory created on rootfs:
+
+# mkdir –p /cdn/cache0
+NGINX Configuration
+
+# cat /usr/local/nginx/nginx.conf
+user                nginx;
+daemon              off;
+worker_processes    auto;
+worker_cpu_affinity auto;
+
+error_log           error.log ;
+events {
+    worker_connections  65535;
+    use epoll;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+    access_log    off;
+    aio           threads;
+    aio_write     on;
+    read_ahead    0;
+    tcp_nopush    on;
+    tcp_nodelay   off;
+
+    sendfile      off;
+
+    upstream backends {
+        server localhost:8888;
+        keepalive 500;
+    }
+# Cache Configurations
+proxy_cache_path /cdn/cache0/NX levels=2 keys_zone=nginx-cache0:300m max_size=10g inactive=4d use_temp_path=off;
+
+# Map drives
+split_clients $request_uri $ng_cache {
+        100%          "nginx-cache0";
+}
+
+server {
+    listen 80; ## listen for ipv4
+    listen [::]:80; ## listen for ipv6
+
+    server_name Neon08;
+
+    ## Always put default location
+    location / {
+      expires 30d;
+      add_header Pragma public;
+      add_header Cache-Control "public";
+
+      proxy_cache_key $uri;
+      proxy_cache $ng_cache;
+      proxy_set_header Host $host;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_pass http://backends;
+    }
+  }
+}
+

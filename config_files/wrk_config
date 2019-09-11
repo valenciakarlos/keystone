@@ -1,0 +1,42 @@
+WRK HTTP(s) workload generator built from source:  http://github.com/wg/wrk
+
+WRK installed to $HOME/wrk.
+
+# ls $HOME/wrk
+CHANGES          deps     LICENSE   NOTICE  ramptime.patch  SCRIPTING  src  wrk.sh
+cpu_governor.sh  INSTALL  Makefile  obj     README.md       scripts    wrk
+
+# $HOME/wrk/wrk --version
+wrk 4.1.0-dirty [epoll] Copyright (C) 2012 Will Glozer
+
+Has two phases. A fill phase and a read phase.
+
+#Fill phase.
+
+# cat wrk_start_fill.sh
+#!/bin/bash
+
+ulimit -n 65535
+http_proxy= https_proxy= $HOME/wrk/wrk \
+ -t 56 \
+ -c 35000 \
+ -d 600s \
+ -s $HOME/wrk/scripts/query.lua \
+ --timeout 10s \
+ https://<EDGE_CACHE_NODE_IP>
+
+
+#Read Phase:
+
+# cat wrk_start_fill.sh
+#!/bin/bash
+
+ulimit -n 65535
+http_proxy= https_proxy= $HOME/wrk/wrk \
+ -t 56 \
+ -c 35000 \
+ -d 300s \
+ -s $HOME/wrk/scripts/query.lua \
+ --timeout 10s \
+ https://<EDGE_CACHE_NODE_IP>
+
